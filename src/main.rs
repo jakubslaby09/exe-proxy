@@ -1,4 +1,8 @@
-use std::{env::args, fs::{read_to_string, File}, io::{stdout, ErrorKind, Read, Write}, process::{exit, Command, Stdio}, time::{SystemTime, UNIX_EPOCH}};
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::process::{exit, Command, Stdio};
+use std::io::{stdout, ErrorKind, Read, Write};
+use std::fs::{read_to_string, File};
+use std::env::args;
 
 const CONFIG_PATH: &str = "./exe-proxy-target.txt";
 const LOG_PATH_PREFIX: &str = "./exe-proxy";
@@ -18,6 +22,15 @@ fn main() -> ! {
             exit(69003);
         },
     };
+    if program_path.contains('\n') {
+        eprintln!("{CONFIG_PATH} contains more than one line");
+        exit(69008);
+    }
+    if program_path.is_empty() {
+        eprintln!("{CONFIG_PATH} is empty. add a target program path");
+        exit(69009);
+    }
+
     let time_ms = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(it) => it.as_millis(),
         Err(_) => 0,
@@ -27,21 +40,12 @@ fn main() -> ! {
         Ok(it) => it,
         Err(err) => {
             eprintln!("couldn't create a log file at {log_path}: {err}");
-            exit(69003)
+            exit(690010)
         },
     };
     if let Err(err) = writeln!(log, "{}:", args().collect::<Vec<String>>().join(" ")) {
         eprintln!("couldn't write to log {log_path}: {err}");
-        exit(69003);
-    }
-
-    if program_path.contains('\n') {
-        eprintln!("{CONFIG_PATH} contains more than one line");
-        exit(69006);
-    }
-    if program_path.is_empty() {
-        eprintln!("{CONFIG_PATH} is empty. add a target program path");
-        exit(69007);
+        exit(69011);
     }
 
     // let stdout_buff = BufWriter::new(todo!());
@@ -68,8 +72,8 @@ fn main() -> ! {
             break;
         }
         if let Err(err) = stdout_writer.write(&buf[..n]) {
-            eprintln!("cannot write stdout: {err}");
-            exit(69008)
+            eprintln!("cannot log stdout: {err}");
+            exit(69005)
         }
     }
 
@@ -80,10 +84,13 @@ fn main() -> ! {
             if let Some(code) = status.code() {
                 exit(code);
             } else {
-                exit(69005);
+                exit(69007);
             }
         }
-        Err(_) => todo!(),
+        Err(err) => {
+            eprintln!("failed to start {program_path}: {err}");
+            exit(69006);
+        },
     }
 }
 
